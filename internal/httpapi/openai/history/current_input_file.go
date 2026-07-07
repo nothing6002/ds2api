@@ -124,7 +124,7 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 
 func (s Service) applyExpertInlineContext(stdReq promptcompat.StandardRequest, fileText, toolsText string) promptcompat.StandardRequest {
 	var content strings.Builder
-	content.WriteString("Continue from the latest state. The full conversation history is below:\n\n")
+	content.WriteString("Continue from the last message. The conversation so far:\n\n")
 	content.WriteString(fileText)
 	if strings.TrimSpace(toolsText) != "" {
 		content.WriteString("\n\n")
@@ -225,9 +225,9 @@ func latestUserInputForFile(messages []any) (int, string) {
 }
 
 func currentInputFilePrompt(hasToolsFile bool) string {
-	prompt := "Continue from the latest state in the attached DS2API_HISTORY.txt context. Treat it as the current working state and answer the latest user request directly."
+	prompt := "Continue from the last message. The conversation log is in the attached CONV_LOG.txt. Pick up where it left off and answer the latest request."
 	if hasToolsFile {
-		prompt += " Available tool descriptions and parameter schemas are attached in DS2API_TOOLS.txt; use only those tools and follow the tool-call format rules in this prompt."
+		prompt += " Function schemas are in CTX_HELPERS.txt — only call functions listed there."
 	}
 	return prompt
 }
