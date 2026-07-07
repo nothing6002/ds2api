@@ -56,6 +56,14 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 	if resolvedType, ok := config.GetModelType(stdReq.ResolvedModel); ok {
 		modelType = resolvedType
 	}
+
+	// DeepSeek web has disabled file uploads for expert (pro) models.
+	// When the resolved model is expert, inline the full conversation history
+	// directly into the prompt instead of uploading it as a file.
+	if modelType == "expert" {
+		return s.applyExpertInlineContext(stdReq, fileText, toolsText), nil
+	}
+
 	result, err := s.DS.UploadFile(ctx, a, dsclient.UploadFileRequest{
 		Filename:    currentInputFilename,
 		ContentType: currentInputContentType,
@@ -112,6 +120,37 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 	tokenParts = append(tokenParts, stdReq.FinalPrompt)
 	stdReq.PromptTokenText = strings.Join(tokenParts, "\n")
 	return stdReq, nil
+}
+
+func (s Service) applyExpertInlineContext(stdReq promptcompat.StandardRequest, fileText, toolsText string) promptcompat.StandardRequest {
+	var content strings.Builder
+	content.WriteString("Continue from the latest state. The full conversation history is below:\n\n")
+	content.WriteString(fileText)
+	if strings.TrimSpace(toolsText) != "" {
+		content.WriteString("\n\n")
+		content.WriteString(toolsText)
+	}
+
+	messages := []any{
+		map[string]any{
+			"role":    "user",
+			"content": content.String(),
+		},
+	}
+
+	stdReq.Messages = messages
+	stdReq.HistoryText = fileText
+	stdReq.CurrentInputFileApplied = true
+	// No file IDs — expert models skip file upload entirely.
+	stdReq.FinalPrompt, stdReq.ToolNames = promptcompat.BuildOpenAIPrompt(messages, stdReq.ToolsRaw, "", stdReq.ToolChoice, stdReq.Thinking)
+
+	tokenParts := []string{fileText}
+	if strings.TrimSpace(toolsText) != "" {
+		tokenParts = append(tokenParts, toolsText)
+	}
+	tokenParts = append(tokenParts, stdReq.FinalPrompt)
+	stdReq.PromptTokenText = strings.Join(tokenParts, "\n")
+	return stdReq
 }
 
 func (s Service) ReuploadAppliedCurrentInputFile(ctx context.Context, a *auth.RequestAuth, stdReq promptcompat.StandardRequest) (promptcompat.StandardRequest, error) {
