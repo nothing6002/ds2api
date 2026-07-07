@@ -134,14 +134,33 @@ func renderToolExampleBlock(calls []promptToolExample) string {
 	var b strings.Builder
 	b.WriteString("<|DSML|tool_calls>\n")
 	for _, call := range calls {
-		b.WriteString(` <|DSML|invoke name="`)
+		b.WriteString(`  <|DSML|invoke name="`)
 		b.WriteString(call.name)
 		b.WriteString(`">` + "\n")
-		b.WriteString(indentPromptParameters(call.params, "  "))
-		b.WriteString("\n</|DSML|invoke>\n")
+		b.WriteString(indentPromptParameters(call.params, "    "))
+		b.WriteString("\n  </|DSML|invoke>\n")
 	}
 	b.WriteString("</|DSML|tool_calls>")
 	return b.String()
+}
+
+func indentPromptParameters(body, indent string) string {
+	if strings.TrimSpace(body) == "" {
+		return indent + `<|DSML|parameter name="content"></|DSML|parameter>`
+	}
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			lines[i] = line
+			continue
+		}
+		lines[i] = indent + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func wrapParameter(name, inner string) string {
+	return `<|DSML|parameter name="` + name + `">` + inner + `</|DSML|parameter>`
 }
 
 func exampleBasicParams(name string) (string, bool) {
