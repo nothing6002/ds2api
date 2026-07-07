@@ -23,10 +23,9 @@ const (
 )
 
 var defaultStaticBaseHeaders = map[string]string{
-	"Host":           "chat.deepseek.com",
-	"Accept":         "application/json",
-	"Content-Type":   "application/json",
-	"accept-charset": "UTF-8",
+	"Host":         "chat.deepseek.com",
+	"Accept":       "application/json",
+	"Content-Type": "application/json",
 }
 
 var defaultSkipContainsPatterns = []string{
@@ -50,11 +49,12 @@ var SkipContainsPatterns = cloneStringSlice(defaultSkipContainsPatterns)
 var SkipExactPathSet = toStringSet(defaultSkipExactPaths)
 
 type clientConstants struct {
-	Name            string `json:"name"`
-	Platform        string `json:"platform"`
-	Version         string `json:"version"`
-	AndroidAPILevel string `json:"android_api_level"`
-	Locale          string `json:"locale"`
+	Name           string `json:"name"`
+	Platform       string `json:"platform"`
+	Version        string `json:"version"`
+	BundleID       string `json:"bundle_id"`
+	Locale         string `json:"locale"`
+	TimezoneOffset string `json:"timezone_offset"`
 }
 
 type sharedConstants struct {
@@ -94,13 +94,16 @@ func normalizeClientConstants(in clientConstants) clientConstants {
 		in.Name = "DeepSeek"
 	}
 	if in.Platform == "" {
-		in.Platform = "android"
+		in.Platform = "web"
 	}
-	if in.AndroidAPILevel == "" {
-		in.AndroidAPILevel = "35"
+	if in.BundleID == "" {
+		in.BundleID = "com.deepseek.chat"
 	}
 	if in.Locale == "" {
 		in.Locale = "zh_CN"
+	}
+	if in.TimezoneOffset == "" {
+		in.TimezoneOffset = "480"
 	}
 	return in
 }
@@ -114,11 +117,7 @@ func buildBaseHeaders(client clientConstants, overrides map[string]string) map[s
 		out[k] = v
 	}
 	if client.Name != "" && client.Version != "" {
-		userAgent := client.Name + "/" + client.Version
-		if client.Platform == "android" && client.AndroidAPILevel != "" {
-			userAgent += " Android/" + client.AndroidAPILevel
-		}
-		out["User-Agent"] = userAgent
+		out["User-Agent"] = client.Name + "/" + client.Version
 	}
 	if client.Platform != "" {
 		out["x-client-platform"] = client.Platform
@@ -126,8 +125,14 @@ func buildBaseHeaders(client clientConstants, overrides map[string]string) map[s
 	if client.Version != "" {
 		out["x-client-version"] = client.Version
 	}
+	if client.BundleID != "" {
+		out["x-client-bundle-id"] = client.BundleID
+	}
 	if client.Locale != "" {
 		out["x-client-locale"] = client.Locale
+	}
+	if client.TimezoneOffset != "" {
+		out["x-client-timezone-offset"] = client.TimezoneOffset
 	}
 	return out
 }

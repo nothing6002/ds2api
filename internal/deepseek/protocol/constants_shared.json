@@ -1,16 +1,16 @@
 {
   "client": {
     "name": "DeepSeek",
-    "platform": "android",
-    "version": "2.0.4",
-    "android_api_level": "35",
-    "locale": "zh_CN"
+    "platform": "web",
+    "version": "2.2.0",
+    "bundle_id": "com.deepseek.chat",
+    "locale": "zh_CN",
+    "timezone_offset": "28800"
   },
   "base_headers": {
     "Host": "chat.deepseek.com",
     "Accept": "application/json",
     "Content-Type": "application/json",
-    "accept-charset": "UTF-8",
     "Origin": "https://chat.deepseek.com",
     "Referer": "https://chat.deepseek.com/"
   },

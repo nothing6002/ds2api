@@ -5,16 +5,16 @@ const path = require('path');
 
 const DEFAULT_CLIENT = Object.freeze({
   name: 'DeepSeek',
-  platform: 'android',
-  androidApiLevel: '35',
+  platform: 'web',
+  bundleId: 'com.deepseek.chat',
   locale: 'zh_CN',
+  timezoneOffset: '480',
 });
 
 const DEFAULT_BASE_HEADERS = Object.freeze({
   Host: 'chat.deepseek.com',
   Accept: 'application/json',
   'Content-Type': 'application/json',
-  'accept-charset': 'UTF-8',
 });
 
 const DEFAULT_SKIP_PATTERNS = Object.freeze([
@@ -42,8 +42,9 @@ function normalizeClient(raw) {
     name: asNonEmptyString(client.name) || DEFAULT_CLIENT.name,
     platform: asNonEmptyString(client.platform) || DEFAULT_CLIENT.platform,
     version: asNonEmptyString(client.version),
-    androidApiLevel: asNonEmptyString(client.android_api_level) || DEFAULT_CLIENT.androidApiLevel,
+    bundleId: asNonEmptyString(client.bundle_id) || DEFAULT_CLIENT.bundleId,
     locale: asNonEmptyString(client.locale) || DEFAULT_CLIENT.locale,
+    timezoneOffset: asNonEmptyString(client.timezone_offset) || DEFAULT_CLIENT.timezoneOffset,
   };
 }
 
@@ -53,10 +54,7 @@ function buildBaseHeaders(parsed, client) {
     : {};
   const baseHeaders = { ...DEFAULT_BASE_HEADERS, ...rawBaseHeaders };
   if (client.name && client.version) {
-    const androidSuffix = client.platform === 'android' && client.androidApiLevel
-      ? ` Android/${client.androidApiLevel}`
-      : '';
-    baseHeaders['User-Agent'] = `${client.name}/${client.version}${androidSuffix}`;
+    baseHeaders['User-Agent'] = `${client.name}/${client.version}`;
   }
   if (client.platform) {
     baseHeaders['x-client-platform'] = client.platform;
@@ -64,8 +62,14 @@ function buildBaseHeaders(parsed, client) {
   if (client.version) {
     baseHeaders['x-client-version'] = client.version;
   }
+  if (client.bundleId) {
+    baseHeaders['x-client-bundle-id'] = client.bundleId;
+  }
   if (client.locale) {
     baseHeaders['x-client-locale'] = client.locale;
+  }
+  if (client.timezoneOffset) {
+    baseHeaders['x-client-timezone-offset'] = client.timezoneOffset;
   }
   return baseHeaders;
 }
