@@ -3,10 +3,12 @@ package promptcompat
 import "strings"
 
 const (
-	ThinkingInjectionMarker        = "Reasoning Effort: Absolute maximum with no shortcuts permitted."
+	ThinkingInjectionMarker = "Before responding, walk through your reasoning step by step."
+
 	DefaultThinkingInjectionPrompt = ThinkingInjectionMarker + "\n" +
-		"You MUST be very thorough in your thinking and comprehensively decompose the problem to resolve the root cause, rigorously stress-testing your logic against all potential paths, edge cases, and adversarial scenarios.\n" +
-		"Explicitly write out your entire deliberation process, documenting every intermediate step, considered alternative, and rejected hypothesis to ensure absolutely no assumption is left unchecked."
+		"Take a moment to think things through properly. Look at the problem from different perspectives and make sure you understand what the person actually needs. " +
+		"Go over your analysis carefully - double-check your logic, verify any assumptions, and consider whether your conclusion holds up under scrutiny. " +
+		"If there are multiple approaches, weigh them against each other before settling on one. Be methodical rather than jumping to an answer."
 )
 
 func AppendThinkingInjectionToLatestUser(messages []any) ([]any, bool) {
@@ -17,10 +19,12 @@ func AppendThinkingInjectionPromptToLatestUser(messages []any, injectionPrompt s
 	if len(messages) == 0 {
 		return messages, false
 	}
+
 	injectionPrompt = strings.TrimSpace(injectionPrompt)
 	if injectionPrompt == "" {
 		injectionPrompt = DefaultThinkingInjectionPrompt
 	}
+
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg, ok := messages[i].(map[string]any)
 		if !ok {

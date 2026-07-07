@@ -9,10 +9,11 @@ import (
 	"ds2api/internal/toolcall"
 )
 
-const CurrentToolsContextFilename = "DS2API_TOOLS.txt"
+const CurrentToolsContextFilename = "CTX_HELPERS.txt"
 
-const toolsTranscriptTitle = "# DS2API_TOOLS.txt"
-const toolsTranscriptSummary = "Available tool descriptions and parameter schemas for this request."
+const toolsTranscriptTitle = "# CTX_HELPERS.txt"
+
+const toolsTranscriptSummary = "Function reference for the current session."
 
 type toolPromptParts struct {
 	Descriptions string
@@ -32,15 +33,17 @@ func injectToolPromptWithDescriptions(messages []map[string]any, tools []any, po
 	if policy.IsNone() {
 		return messages, nil
 	}
+
 	parts := buildToolPromptParts(tools, policy)
 	if parts.Instructions == "" {
 		return messages, parts.Names
 	}
+
 	toolPrompt := parts.Instructions
 	if includeDescriptions && parts.Descriptions != "" {
 		toolPrompt = parts.Descriptions + "\n\n" + toolPrompt
 	} else if !includeDescriptions && parts.Descriptions != "" {
-		toolPrompt = "Available tool descriptions and parameter schemas are attached in DS2API_TOOLS.txt. Treat DS2API_TOOLS.txt as the authoritative list of callable tools and schemas; use only tools and parameters listed there.\n\n" + toolPrompt
+		toolPrompt = "Function schemas are provided in CTX_HELPERS.txt. Consult that file for the complete list of callable functions and their parameter specifications.\n\n" + toolPrompt
 	}
 
 	for i := range messages {
@@ -50,6 +53,7 @@ func injectToolPromptWithDescriptions(messages []map[string]any, tools []any, po
 			return messages, parts.Names
 		}
 	}
+
 	messages = append([]map[string]any{{"role": "system", "content": toolPrompt}}, messages...)
 	return messages, parts.Names
 }
@@ -57,6 +61,7 @@ func injectToolPromptWithDescriptions(messages []map[string]any, tools []any, po
 func buildToolPromptParts(tools []any, policy ToolChoicePolicy) toolPromptParts {
 	toolSchemas := make([]string, 0, len(tools))
 	names := make([]string, 0, len(tools))
+
 	isAllowed := func(name string) bool {
 		if strings.TrimSpace(name) == "" {
 			return false
@@ -80,26 +85,33 @@ func buildToolPromptParts(tools []any, policy ToolChoicePolicy) toolPromptParts 
 		}
 		names = append(names, name)
 		if desc == "" {
-			desc = "No description available"
+			desc = "(no description provided)"
 		}
 		b, _ := json.Marshal(schema)
-		toolSchemas = append(toolSchemas, fmt.Sprintf("Tool: %s\nDescription: %s\nParameters: %s", name, desc, string(b)))
+		toolSchemas = append(toolSchemas, fmt.Sprintf("Function: %s\n  Purpose: %s\n  Arguments: %s", name, desc, string(b)))
 	}
+
 	if len(toolSchemas) == 0 {
 		return toolPromptParts{Names: names}
 	}
-	descriptions := "You have access to these tools:\n\n" + strings.Join(toolSchemas, "\n\n")
+
+	descriptions := "Here are the functions you can call:\n\n" + strings.Join(toolSchemas, "\n\n")
+
 	instructions := toolcall.BuildToolCallInstructions(names)
+
 	if hasReadLikeTool(names) {
-		instructions += "\n\nRead-tool cache guard: If a Read/read_file-style tool result says the file is unchanged, already available in history, should be referenced from previous context, or otherwise provides no file body, treat that result as missing content. Do not repeatedly call the same read request for that missing body. Request a full-content read if the tool supports it, or tell the user that the file contents need to be provided again."
+		instructions += "\n\n  File reading note: if a read-style tool returns a result indicating the file hasn't changed or its contents are already available from earlier context without providing the actual file body, consider that content missing. Do not issue repeated read requests for the same absent content. Either request a full read if the tool supports it, or let the user know you need the file contents."
 	}
+
 	if policy.Mode == ToolChoiceRequired {
-		instructions += "\n7) For this response, you MUST call at least one tool from the allowed list."
+		instructions += "\n  Note: you need to invoke at least one function from the available list in this response."
 	}
+
 	if policy.Mode == ToolChoiceForced && strings.TrimSpace(policy.ForcedName) != "" {
-		instructions += "\n7) For this response, you MUST call exactly this tool name: " + strings.TrimSpace(policy.ForcedName)
-		instructions += "\n8) Do not call any other tool."
+		instructions += "\n  Note: for this response, call only this function: " + strings.TrimSpace(policy.ForcedName)
+		instructions += "\n  Do not invoke any other functions."
 	}
+
 	return toolPromptParts{
 		Descriptions: descriptions,
 		Instructions: instructions,

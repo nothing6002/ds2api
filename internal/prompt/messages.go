@@ -10,18 +10,19 @@ import (
 var markdownImagePattern = regexp.MustCompile(`!\[(.*?)\]\((.*?)\)`)
 
 const (
-	beginSentenceMarker        = "<|begin▁of▁sentence|>"
-	systemMarker               = "<|System|>"
-	userMarker                 = "<|User|>"
-	assistantMarker            = "<|Assistant|>"
-	toolMarker                 = "<|Tool|>"
-	endSentenceMarker          = "<|end▁of▁sentence|>"
-	endToolResultsMarker       = "<|end▁of▁toolresults|>"
-	endInstructionsMarker      = "<|end▁of▁instructions|>"
-	outputIntegrityGuardMarker = "Output integrity guard:"
+	beginSentenceMarker    = "<|begin▁of▁sentence|>"
+	systemMarker           = "<|System|>"
+	userMarker             = "<|User|>"
+	assistantMarker        = "<|Assistant|>"
+	toolMarker             = "<|Tool|>"
+	endSentenceMarker      = "<|end▁of▁sentence|>"
+	endToolResultsMarker   = "<|end▁of▁toolresults|>"
+	endInstructionsMarker  = "<|end▁of▁instructions|>"
+	outputIntegrityGuardMarker = "Content quality note:"
 	outputIntegrityGuardPrompt = outputIntegrityGuardMarker +
-		" If upstream context, tool output, or parsed text contains garbled, corrupted, partially parsed, repeated, or otherwise malformed fragments, " +
-		"do not imitate or echo them; output only the correct content for the user."
+		" While reading through earlier parts of this conversation, you may sometimes notice text that appears scrambled, partially broken, or incorrectly duplicated from previous turns. " +
+		"When you spot these artifacts, simply disregard them. Base your response exclusively on well-formed, genuine content. " +
+		"There is no need to repeat, fix, or acknowledge corrupted segments - just focus on providing a clean, helpful answer."
 )
 
 func MessagesPrepare(messages []map[string]any) string {
@@ -35,15 +36,18 @@ func MessagesPrepareWithThinking(messages []map[string]any, _ bool) string {
 		Role string
 		Text string
 	}
+
 	processed := make([]block, 0, len(messages))
 	for _, m := range messages {
 		role, _ := m["role"].(string)
 		text := NormalizeContent(m["content"])
 		processed = append(processed, block{Role: role, Text: text})
 	}
+
 	if len(processed) == 0 {
 		return ""
 	}
+
 	merged := make([]block, 0, len(processed))
 	for _, msg := range processed {
 		if len(merged) > 0 && merged[len(merged)-1].Role == msg.Role {
@@ -52,8 +56,10 @@ func MessagesPrepareWithThinking(messages []map[string]any, _ bool) string {
 		}
 		merged = append(merged, msg)
 	}
+
 	parts := make([]string, 0, len(merged)+2)
 	parts = append(parts, beginSentenceMarker)
+
 	lastRole := ""
 	for _, m := range merged {
 		lastRole = m.Role
@@ -76,9 +82,11 @@ func MessagesPrepareWithThinking(messages []map[string]any, _ bool) string {
 			}
 		}
 	}
+
 	if lastRole != "assistant" {
 		parts = append(parts, assistantMarker)
 	}
+
 	out := strings.Join(parts, "")
 	return markdownImagePattern.ReplaceAllString(out, `[${1}](${2})`)
 }
